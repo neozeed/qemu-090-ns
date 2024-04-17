@@ -6159,6 +6159,8 @@ void help(void)
            "                connect the vlan 'n' to another VLAN using a socket connection\n"
            "-net socket[,vlan=n][,fd=h][,mcast=maddr:port]\n"
            "                connect the vlan 'n' to multicast maddr and port\n"
+           "-net socket[,vlan=n][,fd=h][,udp=addr:port],[remote=addr:port]\n"
+           "                connect the vlan 'n' to udp listen port and remote port\n"
            "-net none       use it alone to have zero network devices; if no -net option\n"
            "                is provided, the default is '-net nic -net user'\n"
            "\n"
@@ -6359,7 +6361,7 @@ const QEMUOption qemu_options[] = {
     { "std-vga", 0, QEMU_OPTION_std_vga },
     { "monitor", 1, QEMU_OPTION_monitor },
     { "serial", 1, QEMU_OPTION_serial },
-    { "parallel", 1, QEMU_OPTION_parallel },
+    { "parallel", 0, QEMU_OPTION_parallel },
     { "loadvm", HAS_ARG, QEMU_OPTION_loadvm },
     { "full-screen", 0, QEMU_OPTION_full_screen },
 #ifdef CONFIG_SDL
