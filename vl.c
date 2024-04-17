@@ -139,6 +139,8 @@ QEMUTimer *gui_timer;
 int vm_running;
 int rtc_utc = 1;
 int cirrus_vga_enabled = 1;
+int cdrom_disabled = 0;
+int rhapsodymouse = 0;
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -512,6 +514,29 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttons_state)
         qemu_put_mouse_event_current->qemu_put_mouse_event;
     mouse_event_opaque =
         qemu_put_mouse_event_current->qemu_put_mouse_event_opaque;
+
+    /* The mouse state is:
+       1 for left mouse button
+       2 for right mouse button
+       4 for the centre mouse button
+
+       Under Rhapsody the mouse buttons are mapped incorrectly.  Other OS's seem okay?
+    */
+if(rhapsodymouse)
+    switch (buttons_state){
+	case 1:
+	    buttons_state=4;
+	    break;
+	case 2:
+	    buttons_state=1;
+	    break;
+	case 4:
+	    buttons_state=2;
+	    break;
+	default:
+	    break;
+	}
+
 
     if (mouse_event) {
         mouse_event(mouse_event_opaque, dx, dy, dz, buttons_state);
@@ -3732,6 +3757,55 @@ static int net_socket_mcast_init(VLANState *vlan, const char *host_str)
 
 }
 
+static int net_socket_udp_init(VLANState *vlan, const char *host_str, const char *remote_host_str)
+{
+    NetSocketState *s;
+    int fd, val, ret;
+    struct sockaddr_in laddr, raddr;
+
+    if (parse_host_port(&laddr, host_str) < 0) {
+        return -1;
+    }
+
+    if (parse_host_port(&raddr, remote_host_str) < 0) {
+        return -1;
+    }
+
+    fd = socket(PF_INET, SOCK_DGRAM, 0);
+    if (fd < 0) {
+        perror("socket(PF_INET, SOCK_DGRAM)");
+        return -1;
+    }
+    val = 1;
+    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                   (const char *)&val, sizeof(val));
+    if (ret < 0) {
+        perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
+        closesocket(fd);
+        return -1;
+    }
+    ret = bind(fd, (struct sockaddr *)&laddr, sizeof(laddr));
+    if (ret < 0) {
+        perror("bind");
+        closesocket(fd);
+        return -1;
+    }
+
+    s = net_socket_fd_init(vlan, fd, 0);
+    if (!s) {
+        return -1;
+    }
+
+    s->dgram_dst = raddr;
+
+    snprintf(s->vc->info_str, sizeof(s->vc->info_str),
+             "socket: udp=%s:%d", 
+             inet_ntoa(raddr.sin_addr), ntohs(raddr.sin_port));
+    return 0;
+
+}
+
+
 static int get_param_value(char *buf, int buf_size,
                            const char *tag, const char *str)
 {
@@ -3778,6 +3852,7 @@ static int net_client_init(const char *str)
     char *q;
     char device[64];
     char buf[1024];
+    char buf2[1024];
     int vlan_id, ret;
     VLANState *vlan;
 
@@ -3825,6 +3900,12 @@ static int net_client_init(const char *str)
         }
         if (get_param_value(buf, sizeof(buf), "model", p)) {
             nd->model = strdup(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "irq", p)) {
+            nd->irq = atoi(buf);
+        }
+        if (get_param_value(buf, sizeof(buf), "base", p)) {
+            nd->base = strtol(buf,NULL,16);
         }
         nd->vlan = vlan;
         nb_nics++;
@@ -3886,6 +3967,9 @@ static int net_client_init(const char *str)
             ret = net_socket_connect_init(vlan, buf);
         } else if (get_param_value(buf, sizeof(buf), "mcast", p) > 0) {
             ret = net_socket_mcast_init(vlan, buf);
+        } else if ( (get_param_value(buf, sizeof(buf), "udp", p) > 0) &&	\
+			( get_param_value(buf2, sizeof(buf2), "remote", p) > 0) ) {
+            ret = net_socket_udp_init(vlan, buf,buf2);
         } else {
             fprintf(stderr, "Unknown socket options: %s\n", p);
             return -1;
@@ -6115,6 +6199,8 @@ void help(void)
            "-std-vga        simulate a standard VGA card with VESA Bochs Extensions\n"
            "                (default is CL-GD5446 PCI VGA)\n"
            "-no-acpi        disable ACPI\n"
+           "-rhapsodymouse  This 'fixes' the mouse buttons for Rhapsody.  Not needed in NS/OS\n"
+           "-no-cdrom       This completly removes the CD-ROM as some things don't like it\n"
 #endif
            "-no-reboot      exit instead of rebooting\n"
            "-loadvm file    start right away with a saved state (loadvm in monitor)\n"
@@ -6154,6 +6240,7 @@ enum {
     QEMU_OPTION_hdc,
     QEMU_OPTION_hdd,
     QEMU_OPTION_cdrom,
+    QEMU_OPTION_cdrom_disabled,
     QEMU_OPTION_boot,
     QEMU_OPTION_snapshot,
 #ifdef TARGET_I386
@@ -6185,6 +6272,7 @@ enum {
     QEMU_OPTION_k,
     QEMU_OPTION_localtime,
     QEMU_OPTION_cirrusvga,
+    QEMU_OPTION_rhapsodymouse,
     QEMU_OPTION_g,
     QEMU_OPTION_std_vga,
     QEMU_OPTION_monitor,
@@ -6226,6 +6314,7 @@ const QEMUOption qemu_options[] = {
     { "hdc", HAS_ARG, QEMU_OPTION_hdc },
     { "hdd", HAS_ARG, QEMU_OPTION_hdd },
     { "cdrom", HAS_ARG, QEMU_OPTION_cdrom },
+    { "no-cdrom", 0, QEMU_OPTION_cdrom_disabled },
     { "boot", HAS_ARG, QEMU_OPTION_boot },
     { "snapshot", 0, QEMU_OPTION_snapshot },
 #ifdef TARGET_I386
@@ -6285,6 +6374,7 @@ const QEMUOption qemu_options[] = {
     /* temporary options */
     { "usb", 0, QEMU_OPTION_usb },
     { "cirrusvga", 0, QEMU_OPTION_cirrusvga },
+    { "rhapsodymouse", 0, QEMU_OPTION_rhapsodymouse },
     { "no-acpi", 0, QEMU_OPTION_no_acpi },
     { "no-reboot", 0, QEMU_OPTION_no_reboot },
     { "daemonize", 0, QEMU_OPTION_daemonize },
@@ -6714,6 +6804,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_append:
                 kernel_cmdline = optarg;
                 break;
+            case QEMU_OPTION_cdrom_disabled:
+                cdrom_disabled = 1;
+                break;
             case QEMU_OPTION_cdrom:
                 if (cdrom_index >= 0) {
                     hd_filename[cdrom_index] = optarg;
@@ -6832,6 +6925,9 @@ int main(int argc, char **argv)
             case QEMU_OPTION_std_vga:
                 cirrus_vga_enabled = 0;
                 break;
+	    case QEMU_OPTION_rhapsodymouse:
+		rhapsodymouse=1;
+		break;
             case QEMU_OPTION_g:
                 {
                     const char *p;
@@ -7097,7 +7193,7 @@ int main(int argc, char **argv)
 
     /* we always create the cdrom drive, even if no disk is there */
     bdrv_init();
-    if (cdrom_index >= 0) {
+    if ( (cdrom_index >= 0) && (!cdrom_disabled) ) {
         bs_table[cdrom_index] = bdrv_new("cdrom");
         bdrv_set_type_hint(bs_table[cdrom_index], BDRV_TYPE_CDROM);
     }

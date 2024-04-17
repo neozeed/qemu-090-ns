@@ -198,7 +198,8 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
     switch (iport) {
     case 0x08:                  /* command */
         if ((data != 0) && (data & CMD_NOT_SUPPORTED)) {
-            dolog ("command %#x not supported\n", data);
+		//NeXTSTEP does a lot of these.. so we ignore them!
+            //dolog ("command %#x not supported\n", data);
             return;
         }
         d->command = data;

@@ -50,7 +50,7 @@ static struct {
     int dma;
     int hdma;
     int port;
-} conf = {5, 4, 5, 1, 5, 0x220};
+} conf = {5, 4, 7, 1, 5, 0x220};
 
 typedef struct SB16State {
     QEMUSoundCard card;

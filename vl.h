@@ -159,6 +159,7 @@ extern int smp_cpus;
 extern int no_quit;
 extern int semihosting_enabled;
 extern int autostart;
+extern int cdrom_disabled;
 
 #define MAX_OPTION_ROMS 16
 extern const char *option_rom[MAX_OPTION_ROMS];
@@ -348,6 +349,11 @@ extern CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 
 #define MAX_PARALLEL_PORTS 3
 
+/* busmouse ports */
+
+#define MAX_BUSMOUSE_PORTS 1
+
+
 extern CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 
 /* VLANs support */
@@ -393,6 +399,8 @@ typedef struct NICInfo {
     uint8_t macaddr[6];
     const char *model;
     VLANState *vlan;
+    int base;
+    int irq;
 } NICInfo;
 
 extern int nb_nics;
@@ -1008,6 +1016,12 @@ SerialState *serial_mm_init (SetIRQFunc *set_irq, void *opaque,
 
 typedef struct ParallelState ParallelState;
 ParallelState *parallel_init(int base, int irq, CharDriverState *chr);
+
+/* busmouse.c */
+
+typedef struct BusmouseState BusmouseState;
+BusmouseState *busmouse_init(int base, int irq, CharDriverState *chr);
+ 
 
 /* i8259.c */
 

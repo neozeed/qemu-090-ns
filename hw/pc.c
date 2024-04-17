@@ -400,6 +400,9 @@ static int serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 static int parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 static int parallel_irq[MAX_PARALLEL_PORTS] = { 7, 7, 7 };
 
+static int busmouse_io[MAX_BUSMOUSE_PORTS] = { 0x238 };
+static int busmouse_irq[MAX_BUSMOUSE_PORTS] = { 5 };
+
 #ifdef HAS_AUDIO
 static void audio_init (PCIBus *pci_bus)
 {
@@ -438,7 +441,10 @@ static void pc_init_ne2k_isa(NICInfo *nd)
 
     if (nb_ne2k == NE2000_NB_MAX)
         return;
-    isa_ne2000_init(ne2000_io[nb_ne2k], ne2000_irq[nb_ne2k], nd);
+    if ( (nd->base!=0) && (nd->irq!=0) )
+        isa_ne2000_init(nd->base,nd->irq, nd);
+    else
+        isa_ne2000_init(ne2000_io[nb_ne2k], ne2000_irq[nb_ne2k], nd);
     nb_ne2k++;
 }
 
@@ -632,6 +638,10 @@ static void pc_init1(int ram_size, int vga_ram_size, int boot_device,
 
     register_ioport_read(0x92, 1, 1, ioport92_read, NULL);
     register_ioport_write(0x92, 1, 1, ioport92_write, NULL);
+
+    for(i = 0; i < 1; i++) {
+        busmouse_init(busmouse_io[i], busmouse_irq[i], 0);
+    }
 
     if (pci_enabled) {
         ioapic = ioapic_init();
