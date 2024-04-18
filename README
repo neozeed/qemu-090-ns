@@ -1,3 +1,49 @@
-Read the documentation in qemu-doc.html.
 
-Fabrice Bellard.
+
+This is a weird/speical fork of Qemu 0.90 that had a busmouse patch and an IRQ fix allowing NeXTSTEP to run on Qemu.
+Now you may be asking why this incredibly old version?  Well simply put It's FAST and the disks work.  NeXTSTEP is
+very picky about disks, and something broke all these years ago.
+
+Ive also added a UDP networking update, allowing Qemu to talk to dynamips & HecnetNT so you can easily bridge it.
+
+Rhapsoy changes all the mouse buttons, I guess someone had hard coded a left handed mouse button schema.  I'm left
+handed but even this confuses me, so I added the "rhapsodymouse" option to revert the buttons to normal.  Only
+Rhapsody suffers this weirdness, NeXTSTEP / OPENSTEP don't suffer this.
+
+Since the busmouse uses IRQ 5, I've altered the SoundBlaster to use IRQ 7, and disabled the parallel port by default.
+Who prints anyways?
+
+This is how I run Rhapsody:
+
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+qemu -L pc-bios -m 128 ^
+-k en-us ^
+-rhapsodymouse ^
+-soundhw sb16 ^
+-hda rhapsody-8g.vmdk ^
+-net nic,model=ne2k_pci,vlan=1 ^
+-net socket,udp=127.0.0.1:5001,remote=127.0.0.1:5000,vlan=1 ^
+-boot c
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+
+Darwin/NeXTSTEP/OPENSTEP can use 512MB of RAM fine enough, there is some weird low cap on Rhapsody.
+
+In my case the hecnetnt bridge is setup like this:
+
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+[bridge]
+KM-TEST \Device\NPF_{9C34511A-3DB1-4ABF-BD95-4AACF3848A7F}
+update  127.0.0.1:5001
+
+[tcpip]
+update
+KM-TEST
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+
+And I run it as:
+
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+hecnet.exe 5000
+-------8<-------8<-------8<-------8<-------8<-------8<-------8<
+
+This lets me FTP/telnet into the VM greatly easing data transfer so I don't have to mess with virtual floppies/CD-ROM's.
